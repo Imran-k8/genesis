@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { analyzeJournalEntry } from "@/lib/journal-ai";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import {
   EMPTY_ACTION_STATE,
@@ -13,8 +14,15 @@ import {
   type ActionState,
 } from "@/lib/validators";
 
-function buildMessageRedirect(pathname: string, message: string) {
-  return `${pathname}?message=${encodeURIComponent(message)}`;
+type MessageTone = "error" | "info" | "success";
+
+function buildMessageRedirect(pathname: string, message: string, tone: MessageTone = "success") {
+  const searchParams = new URLSearchParams({
+    message,
+    tone,
+  });
+
+  return `${pathname}?${searchParams.toString()}`;
 }
 
 export async function loginAction(
@@ -115,20 +123,86 @@ export async function createEntryAction(
     return validation;
   }
 
-  const { error } = await supabase.from("journal_entries").insert({
-    user_id: user.id,
-    title: title || null,
-    content,
-  });
+  let analysis = null;
+  let redirectMessage = "Entry saved with AI insights.";
+  let redirectTone: MessageTone = "success";
 
-  if (error) {
+  try {
+    analysis = await analyzeJournalEntry({
+      content,
+      title,
+    });
+  } catch (error) {
+    console.error("Journal analysis failed during entry creation:", error);
+    redirectMessage = "Entry saved, but AI insights are unavailable right now.";
+    redirectTone = "info";
+  }
+
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .insert({
+      analysis_created_at: analysis?.analyzedAt ?? null,
+      analysis_emotions: analysis?.emotions ?? null,
+      analysis_model: analysis?.model ?? null,
+      analysis_note: analysis?.note ?? null,
+      content,
+      title: title || null,
+      user_id: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
     return {
       fields: { title, content },
       message: "Unable to save your journal entry right now.",
     };
   }
 
-  redirect(buildMessageRedirect("/dashboard", "Entry saved successfully."));
+  redirect(buildMessageRedirect(`/journal/${data.id}`, redirectMessage, redirectTone));
+}
+
+export async function analyzeEntryAction(entryId: string) {
+  const user = await requireUser();
+  const supabase = await createServerSupabaseClient();
+
+  const { data: entry, error: loadError } = await supabase
+    .from("journal_entries")
+    .select("content, id, title")
+    .eq("id", entryId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (loadError || !entry) {
+    redirect(buildMessageRedirect("/dashboard", "Unable to find that entry for analysis.", "error"));
+  }
+
+  try {
+    const analysis = await analyzeJournalEntry({
+      content: entry.content,
+      title: entry.title || "",
+    });
+
+    const { error } = await supabase
+      .from("journal_entries")
+      .update({
+        analysis_created_at: analysis.analyzedAt,
+        analysis_emotions: analysis.emotions,
+        analysis_model: analysis.model,
+        analysis_note: analysis.note,
+      })
+      .eq("id", entryId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      redirect(buildMessageRedirect(`/journal/${entryId}`, "Unable to save AI insights right now.", "error"));
+    }
+  } catch (error) {
+    console.error("Journal analysis failed for existing entry:", error);
+    redirect(buildMessageRedirect(`/journal/${entryId}`, "AI insights are unavailable right now.", "error"));
+  }
+
+  redirect(buildMessageRedirect(`/journal/${entryId}`, "AI insights updated.", "success"));
 }
 
 export async function deleteEntryAction(entryId: string) {
@@ -142,8 +216,8 @@ export async function deleteEntryAction(entryId: string) {
     .eq("user_id", user.id);
 
   if (error) {
-    redirect(buildMessageRedirect(`/journal/${entryId}`, "Unable to delete that entry."));
+    redirect(buildMessageRedirect(`/journal/${entryId}`, "Unable to delete that entry.", "error"));
   }
 
-  redirect(buildMessageRedirect("/dashboard", "Entry deleted."));
+  redirect(buildMessageRedirect("/dashboard", "Entry deleted.", "success"));
 }

@@ -10,10 +10,12 @@ const baseClasses =
   "inline-flex items-center justify-center rounded-full font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent/35 disabled:pointer-events-none disabled:opacity-60";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white shadow-[0_16px_32px_-18px_rgba(47,102,81,0.9)] hover:bg-accent-strong",
-  secondary: "border border-border bg-white/80 text-foreground hover:bg-white",
+  primary:
+    "bg-[linear-gradient(135deg,var(--accent),var(--accent-strong))] text-white shadow-[0_18px_40px_-20px_rgba(31,77,65,0.85)] hover:-translate-y-0.5 hover:shadow-[0_22px_44px_-18px_rgba(31,77,65,0.95)]",
+  secondary:
+    "border border-border bg-white/78 text-foreground shadow-[0_12px_28px_-24px_rgba(27,45,39,0.7)] backdrop-blur hover:-translate-y-0.5 hover:bg-white",
   ghost: "text-foreground hover:bg-white/70",
-  destructive: "bg-danger text-white hover:bg-[#8f3d3d]",
+  destructive: "bg-danger text-white shadow-[0_18px_36px_-22px_rgba(166,70,70,0.8)] hover:-translate-y-0.5 hover:bg-[#8f3d3d]",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

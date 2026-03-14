@@ -2,6 +2,7 @@
 
 import { useDeferredValue, useState } from "react";
 
+import { getEmotionSearchText } from "@/lib/journal-analysis";
 import type { JournalEntry } from "@/types/database";
 
 export function useJournalSearch(entries: JournalEntry[]) {
@@ -13,8 +14,15 @@ export function useJournalSearch(entries: JournalEntry[]) {
     ? entries.filter((entry) => {
         const title = entry.title?.toLowerCase() ?? "";
         const content = entry.content.toLowerCase();
+        const note = entry.analysis_note?.toLowerCase() ?? "";
+        const emotions = getEmotionSearchText(entry.analysis_emotions);
 
-        return title.includes(normalizedQuery) || content.includes(normalizedQuery);
+        return (
+          title.includes(normalizedQuery) ||
+          content.includes(normalizedQuery) ||
+          note.includes(normalizedQuery) ||
+          emotions.includes(normalizedQuery)
+        );
       })
     : entries;
 

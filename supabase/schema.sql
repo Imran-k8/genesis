@@ -5,9 +5,19 @@ create table if not exists public.journal_entries (
   user_id uuid not null references auth.users (id) on delete cascade,
   title text,
   content text not null check (char_length(trim(content)) > 0),
+  analysis_emotions jsonb,
+  analysis_note text,
+  analysis_model text,
+  analysis_created_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.journal_entries
+  add column if not exists analysis_emotions jsonb,
+  add column if not exists analysis_note text,
+  add column if not exists analysis_model text,
+  add column if not exists analysis_created_at timestamptz;
 
 comment on table public.journal_entries is 'Private journal entries owned by Supabase-authenticated users.';
 

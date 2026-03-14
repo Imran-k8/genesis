@@ -11,6 +11,10 @@ export type Database = {
     Tables: {
       journal_entries: {
         Row: {
+          analysis_created_at: string | null;
+          analysis_emotions: Json | null;
+          analysis_model: string | null;
+          analysis_note: string | null;
           content: string;
           created_at: string;
           id: string;
@@ -19,6 +23,10 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          analysis_created_at?: string | null;
+          analysis_emotions?: Json | null;
+          analysis_model?: string | null;
+          analysis_note?: string | null;
           content: string;
           created_at?: string;
           id?: string;
@@ -27,6 +35,10 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          analysis_created_at?: string | null;
+          analysis_emotions?: Json | null;
+          analysis_model?: string | null;
+          analysis_note?: string | null;
           content?: string;
           created_at?: string;
           id?: string;

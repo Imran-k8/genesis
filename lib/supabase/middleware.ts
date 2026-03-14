@@ -6,7 +6,7 @@ import type { Database } from "@/types/database";
 import { getSupabaseConfig, hasSupabaseEnv } from "@/lib/supabase/config";
 
 const authRoutes = ["/login", "/signup"];
-const protectedRoutes = ["/dashboard", "/journal", "/profile"];
+const protectedRoutes = ["/dashboard", "/insights", "/journal", "/profile"];
 
 function matchesRoute(pathname: string, routes: string[]) {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));

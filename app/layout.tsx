@@ -1,7 +1,19 @@
 import type { Metadata } from "next";
+import { Cormorant_Garamond, Manrope } from "next/font/google";
 import type { ReactNode } from "react";
 
 import "./globals.css";
+
+const sans = Manrope({
+  subsets: ["latin"],
+  variable: "--font-ui",
+});
+
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   title: "Quiet Journal",
@@ -11,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${sans.variable} ${serif.variable} antialiased`}>{children}</body>
     </html>
   );
 }
