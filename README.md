@@ -1,151 +1,214 @@
-# MindPulse
+# Quite Journal
 
 > Built with [Railtracks](https://railtracks.ai)
 
-MindPulse is an AI-powered journaling app that listens between the lines. Users write freely — and when the app detects a pattern of struggle across multiple entries, it proactively surfaces real, nearby Toronto therapists and mental health resources. No prompting required. The agent notices. The agent acts.
+Quite Journal is a private journaling app built with Next.js, Supabase, and AI-powered entry analysis. Users can create an account, write journal entries, review their archive, search past reflections, and view lightweight mood and emotion trends over time.
 
-Built for:
-- **Sun Life** — Best Health Care Hack Using Agentic AI
-- **Google** — Best AI for Community Impact
-- **Railtracks** Bonus Award
+When AI analysis is available, each entry can include:
+- normalized emotion scores across a fixed set of emotions
+- a short reflective note written in a supportive tone
+- optional support recommendations from a separate Railtracks microservice when the app detects a sustained pattern of struggle
 
----
-
-## What It Does
-
-1. **Write** a journal entry — freeform, private, no judgment
-2. **AI analysis** runs automatically on save — emotion scores (joy, sadness, anxiety, anger, gratitude, calm, loneliness, hope) + a warm therapeutic reflection note
-3. **After 3 consecutive struggling entries**, a Railtracks-powered agent proactively recommends 2–3 real Toronto therapists or crisis resources matched to the user's specific situation
-4. **Book** — each recommendation has a direct call or website link the user can act on immediately
-5. **Insights page** — mood trends, emotion patterns, and wellbeing metrics over time
-
-The user never asks for help. The app notices they need it.
+> **Naming note:** this repo still contains mixed legacy naming. The package name is `quiet-journal`, some agent files still use `MindPulse`, and this README refers to the product as **Quite Journal**.
 
 ---
 
-## Tech Stack
+## What the app does
 
-| Layer | Technology |
+### Core journaling flow
+- Email/password sign up and login with Supabase Auth
+- Protected journal pages per user
+- Create, view, search, and delete journal entries
+- Row-level security so users only access their own data
+
+### AI-assisted reflection
+- New entries attempt AI analysis automatically on save
+- Analysis stores:
+  - emotion scores for `joy`, `sadness`, `anxiety`, `anger`, `gratitude`, `calm`, `loneliness`, and `hope`
+  - a short reflection note grounded in the entry text
+- Older entries can also be re-analyzed manually from the entry detail page
+
+### Insights and trends
+- Dashboard cards for entry count, weekly activity, and total words written
+- Search across titles, entry text, saved AI notes, and emotion labels
+- Insights page for mood trends, recurring emotions, and wellbeing metrics based on saved analysis
+
+### Optional support recommendations
+- If an entry is marked as a **struggling** entry and the previous two analyzed entries were also struggling, the app can call a separate Railtracks service
+- That service returns supportive Toronto-area resources and crisis/help options when appropriate
+- Recommendations are shown on the journal entry detail page only when the service is configured and responds successfully
+
+---
+
+## Tech stack
+
+| Area | Technology |
 |---|---|
-| Frontend & routing | Next.js 16 App Router + TypeScript |
+| App framework | Next.js 16 + React 19 + TypeScript |
 | Styling | Tailwind CSS 4 |
-| Auth & database | Supabase (PostgreSQL + Row-Level Security) |
-| Emotion AI | GPT-OSS-120B via HuggingFace endpoint (OpenAI SDK) |
-| Agentic recommendations | Railtracks + FastAPI (Python) |
+| Auth + database | Supabase |
+| AI analysis | OpenAI SDK with a configurable OpenAI-compatible endpoint |
+| Optional recommendation service | Railtracks + FastAPI |
 
 ---
 
-## Project Structure
+## How recommendations are triggered
 
-```
+Recommendations are intentionally conservative.
+
+1. A journal entry is analyzed for emotion scores.
+2. The app checks whether the heavier emotions (`sadness`, `anxiety`, `anger`, `loneliness`) add up to at least `0.45`.
+3. If the current entry qualifies, the app looks at the previous two entries.
+4. If all three are struggling entries, the app calls the Railtracks service at `POST /recommend`.
+5. If the service returns suggestions, they are saved in `analysis_recommendations` and shown on the entry page.
+
+If the Railtracks service is not running, the entry still saves normally.
+
+---
+
+## Project structure
+
+```text
 app/
-  (auth)/           # Login, signup pages
-  (protected)/      # Dashboard, journal, insights, profile
-  actions.ts        # Server actions (auth, journal CRUD, AI calls)
+  (auth)/                # Login and signup pages
+  (protected)/           # Dashboard, journal, insights, profile
+  actions.ts             # Auth, entry creation, analysis, deletion
+  auth/callback/         # Supabase auth callback route
 components/
-  auth/             # Auth form
-  dashboard/        # Stats, entries list, emotion overview
-  entries/          # Entry card, analysis panel, resource card
-  insights/         # Mood trend chart, emotion patterns, wellbeing metrics
-  layout/           # App shell, navigation
-  profile/          # Profile summary
-  ui/               # Shared UI primitives
-lib/
-  journal-ai.ts     # GPT emotion analysis (do not modify)
-  journal-analysis.ts # Emotion scoring utilities + isStrugglingEntry()
-  journal.ts        # Supabase data access
-  recommend.ts      # Next.js → Railtracks service connector
+  auth/                  # Authentication UI
+  dashboard/             # Stats, archive list, emotion overview
+  entries/               # New entry form, entry cards, analysis panel, resource card
+  insights/              # Mood trend chart, emotion patterns, wellbeing metrics
+  layout/                # App shell and navigation
+  profile/               # Profile summary
+  ui/                    # Shared UI primitives
 hooks/
-  use-journal-search.ts
+  use-journal-search.ts  # Client-side archive search
+lib/
+  auth.ts                # Current user / auth guards
+  insights.ts            # Aggregated insight calculations
+  journal-ai.ts          # AI analysis + reflection note generation
+  journal-analysis.ts    # Emotion normalization and struggling-entry logic
+  journal.ts             # Journal data loading and stats
+  recommend.ts           # Next.js -> Railtracks service connector
+  supabase/              # Supabase clients and middleware helpers
 railtracks-agent/
-  agent.py          # Railtracks agent definition
-  app.py            # FastAPI server
-  resources.py      # Curated Toronto therapist/resource list
+  agent.py               # Railtracks recommendation agent
+  app.py                 # FastAPI server exposing /recommend
+  resources.py           # Resource list used by the agent
 supabase/
-  schema.sql        # Full database schema with RLS policies
+  schema.sql             # Journal table, RLS policies, timestamps
 types/
-  database.ts       # Generated Supabase types
+  database.ts            # Generated database types
 ```
 
 ---
 
-## Setup
+## Getting started
 
 ### Prerequisites
-
 - Node.js 20+
-- Python 3.11+
-- A Supabase account
+- npm
+- Python 3.11+ (only if you want to run the Railtracks service)
+- A Supabase project
 
-### 1. Clone and install
+### 1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Environment variables
+### 2) Add environment variables
 
-Create `.env.local` in the project root:
+Create a `.env.local` file in the project root.
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-OPENAI_API_KEY=your-key
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+OPENAI_API_KEY=your-api-key
+
+# Optional overrides
+OPENAI_BASE_URL=https://your-openai-compatible-endpoint/v1
+OPENAI_MODEL=your-model-name
+OPENAI_MAX_TOKENS=700
+OPENAI_TEMPERATURE=0.4
+RAILTRACKS_URL=http://localhost:8000
 ```
 
-### 3. Database schema
+### 3) Create the database schema
 
-In your Supabase project, open **SQL Editor** and run the contents of `supabase/schema.sql`. This creates the `journal_entries` table, indexes, RLS policies, and the `analysis_recommendations` column.
+Run `supabase/schema.sql` in the Supabase SQL editor.
 
-### 4. Supabase Auth
+This creates:
+- the `journal_entries` table
+- timestamp handling for updates
+- row-level security policies
+- the optional `analysis_recommendations` JSON column
 
-In **Authentication → Providers → Email**, disable email confirmation for local dev if you want instant signup without inbox confirmation.
+### 4) Configure Supabase Auth
 
-### 5. Run the app
+Enable Email auth in Supabase. For local development, you can disable email confirmation if you want immediate sign-in during testing.
 
-**Terminal 1 — Next.js:**
+### 5) Start the Next.js app
+
 ```bash
 npm run dev
-```
-
-**Terminal 2 — Railtracks agent:**
-```bash
-cd railtracks-agent
-pip install -r requirements.txt
-python -m uvicorn app:app --reload --port 8000
 ```
 
 Open `http://localhost:3000`.
 
 ---
 
-## How the Agentic Recommendation Works
+## Running the optional Railtracks service
 
-The recommendation system is intentionally conservative — it only triggers after sustained struggle, not a single bad day.
+The main app works without the recommendation service, but support suggestions will only appear if this service is running.
 
-1. On every journal save, `isStrugglingEntry()` checks if the emotion analysis shows sadness + anxiety + anger + loneliness ≥ 45% combined
-2. If the current entry is struggling, the app fetches the 2 most recent previous entries
-3. If all 3 are struggling, it calls the Railtracks agent at `POST /recommend`
-4. The agent selects 2–3 resources from a curated Toronto therapist list matched to the entry's specific context
-5. Recommendations are stored in `analysis_recommendations` (JSONB) and displayed as a soft card on the entry detail page
+```bash
+cd railtracks-agent
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8000
+```
 
-**The user never asked for help.** The agent noticed the pattern and acted.
+The service exposes:
+- `GET /health`
+- `POST /recommend`
 
----
-
-## Demo Flow
-
-1. Sign up and log in
-2. Write a positive entry → emotion analysis appears, no recommendations
-3. Write 3 consecutive struggling entries (e.g. *"I bombed my exam, I always fail, I feel so alone"*)
-4. Open the 3rd entry → therapist recommendations appear automatically with booking links
-5. Show the Insights page — mood trends and emotion patterns over time
+If you deploy the Railtracks service separately, set `RAILTRACKS_URL` in the Next.js app to that deployed base URL.
 
 ---
 
-## Deployment
+## Typical demo flow
 
-- Deploy the Next.js app to **Vercel** — add the same env vars in project settings
-- Deploy the Railtracks agent to any Python host (Railway, Render, Fly.io)
-- Set `RAILTRACKS_URL` env var in Vercel to point to your deployed agent URL
-- In Supabase Auth settings, add your production URL and `/auth/callback` as allowed redirect URLs
+1. Create an account and sign in.
+2. Save a journal entry.
+3. Open the saved entry and review the AI reflection note and emotion chips.
+4. Add a few more entries and explore the dashboard search.
+5. Visit the Insights page to view mood and emotion trends.
+6. If the Railtracks service is enabled and three consecutive entries are flagged as struggling, open the latest entry to see support recommendations.
+
+---
+
+## Deployment notes
+
+### Next.js app
+Deploy to Vercel or any Node-compatible host, then add the same environment variables used locally.
+
+### Railtracks microservice
+Deploy `railtracks-agent/` to a Python host such as Railway, Render, or Fly.io, then point `RAILTRACKS_URL` at that service.
+
+### Supabase
+Add your production domain and `/auth/callback` URL to the allowed redirect URLs in Supabase Auth.
+
+---
+
+## Current scope
+
+This repo is a polished MVP. It currently supports:
+- account-based private journaling
+- automatic AI analysis on new entries
+- per-entry re-analysis
+- searchable archive views
+- basic insight dashboards
+- optional recommendation handoff to Railtracks
+
+It does **not** currently include entry editing, collaboration, file uploads, or a mobile app.
